@@ -70,12 +70,6 @@ function isLoginAuthenticated(req, res, next) {
 }
 
 // Check if the user is authenticated for file upload
-// function isUploadAuthenticated(req, res, next) {
-//   if (!req.session.user) {
-//     return res.status(401).send('Authentication required');
-//   }
-//   next();
-// }
 function isUploadAuthenticated(req, res, next) {
   if (!req.session.user) {
     console.log('Authentication required. Session user:', req.session.user);
