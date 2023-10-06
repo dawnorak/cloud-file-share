@@ -6,10 +6,12 @@ const path = require('path');
 const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 app.use(
   session({
-    secret: 'secret-key',
+    secret: 'your-secret-key',
     resave: false,
     saveUninitialized: true,
   })
@@ -68,10 +70,18 @@ function isLoginAuthenticated(req, res, next) {
 }
 
 // Check if the user is authenticated for file upload
+// function isUploadAuthenticated(req, res, next) {
+//   if (!req.session.user) {
+//     return res.status(401).send('Authentication required');
+//   }
+//   next();
+// }
 function isUploadAuthenticated(req, res, next) {
   if (!req.session.user) {
+    console.log('Authentication required. Session user:', req.session.user);
     return res.status(401).send('Authentication required');
   }
+  console.log('User is authenticated. Session user:', req.session.user);
   next();
 }
 
@@ -130,14 +140,48 @@ app.get('/upload', (req, res) => {
   res.sendFile(__dirname + '/views/upload.html');
 });
 
-app.post('/upload', isUploadAuthenticated, upload.single('file'), (req, res) => {
+app.post('/upload', upload.single('file'), (req, res) => {
   // Handle file upload here
   const file = req.file;
   if (!file) {
     return res.status(400).send('No file selected');
   }
+
+  const fileInfo = {
+    originalName: file.originalname,
+    fileName: file.filename,
+  };
   // Save file metadata or process it as needed
-  return res.send('File uploaded successfully');
+
+  // Move isUploadAuthenticated middleware here, after file upload is successful
+  isUploadAuthenticated(req, res, () => {
+    return res.send('File uploaded successfully');
+  });
+});
+
+app.get('/file-list', (req, res) => {
+  // Read the list of files from the 'uploads/' directory
+  fs.readdir('uploads/', (err, files) => {
+    if (err) {
+      return res.status(500).send('Internal server error');
+    }
+
+    // Render the 'file-list.ejs' template with the list of file names
+    res.render('file-list', { files });
+  });
+});
+
+app.get('/view-file', (req, res) => {
+  const { filename } = req.query;
+  const filePath = path.join(__dirname, 'uploads', filename);
+
+  // Check if the file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('File not found');
+  }
+
+  // Serve the file for viewing
+  res.sendFile(filePath);
 });
 
 // Start the server
